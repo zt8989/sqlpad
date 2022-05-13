@@ -23,10 +23,10 @@ import {
 import AceEditor, { IAceEditorProps } from "react-ace";
 import { toSqlLines, toSqlLinesData } from "./lib/sqlpad";
 import _ from "lodash";
-import useResizeObserver from "@react-hook/resize-observer";
 
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/theme-github";
+import "ace-builds/src-noconflict/ext-language_tools";
 import "./code.less";
 import { isClipboardWritingAllowed } from "./lib/command";
 import { IAceEditor } from "react-ace/lib/types";
