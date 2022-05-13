@@ -8,21 +8,19 @@ import React, {
 import {
   Row,
   Col,
-  Card,
-  Layout,
   AutoComplete,
   Form,
   Checkbox,
   message,
   Tabs,
   Table,
-  CheckboxProps,
   Divider,
   InputNumber,
 } from "antd";
 import AceEditor, { IAceEditorProps } from "react-ace";
 import { toSqlLines, toSqlLinesData } from "./lib/sqlpad";
 import _ from "lodash";
+import { CopyToClipboard } from "react-copy-to-clipboard";
 
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/theme-github";
@@ -151,28 +149,10 @@ export default function () {
     [dataSource, templateSql]
   );
 
-  const onCopy = () => {
-    // 1. Instantiate editor
-    let editor = editorRef.current?.editor as IAceEditor;
-
-    editor.selectAll();
-    // 2. Store text that will be copied to clipboard
-    let copyText = editor.getCopyText();
-
-    editor.clearSelection();
-    // 4. Verify if clipboard writing is allowed
-    isClipboardWritingAllowed()
-      .then(function (allowed) {
-        // 5. Write to clipboard if allowed (simulating that text has been cutted from the editor)
-        if (allowed) {
-          navigator.clipboard.writeText(copyText).then(function () {
-            message.success("复制成功!");
-          });
-        }
-      })
-      .catch(function (err) {
-        console.log("Cannot copy to clipboard", err);
-      });
+  const onCopy = (text: string, result: boolean) => {
+    if (result) {
+      message.success("复制成功!");
+    }
   };
 
   return (
@@ -206,9 +186,6 @@ export default function () {
         <Col span={24}>
           <div className="card-header">
             <div>模板sql</div>
-            <a href="#" onClick={onCopy}>
-              复制
-            </a>
           </div>
           <Tabs
             tabBarExtraContent={
@@ -294,9 +271,9 @@ export default function () {
         <Col span={12} xs={24}>
           <div className="card-header">
             <div>生成的sql</div>
-            <a href="#" onClick={onCopy}>
-              复制
-            </a>
+            <CopyToClipboard text={generateSql} onCopy={onCopy}>
+              <a href="#">复制</a>
+            </CopyToClipboard>
           </div>
           <div className="editor-wrapper">
             <AceEditor
