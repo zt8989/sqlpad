@@ -193,7 +193,7 @@ export default function () {
               onChange={onDataChanged}
               value={data}
               width="100%"
-              height="400px"
+              height="200px"
               name="csv-data"
               editorProps={{ $blockScrolling: true }}
             />
@@ -206,10 +206,36 @@ export default function () {
               复制
             </a>
           </div>
-          <Tabs>
+          <Tabs
+            tabBarExtraContent={
+              <Form layout="inline">
+                <Form.Item label="分隔符">
+                  <AutoComplete
+                    size="small"
+                    style={{ width: "100px" }}
+                    value={delimiter}
+                    onSelect={onDelimiterChanged}
+                    options={options}
+                  ></AutoComplete>
+                </Form.Item>
+                <Form.Item label="IN模式">
+                  <Checkbox
+                    checked={inMode}
+                    onChange={(e) => setInMode(e.target.checked)}
+                  />
+                </Form.Item>
+                <Form.Item label="收藏">
+                  <Checkbox
+                    checked={dataSource.includes(templateSql)}
+                    onChange={onCollectionChanged}
+                  />
+                </Form.Item>
+              </Form>
+            }
+          >
             <Tabs.TabPane tab="代码区" key="code">
               <Row>
-                <Col span={20}>
+                <Col span={24}>
                   <AceEditor
                     {...commonProps}
                     mode="sql"
@@ -217,40 +243,18 @@ export default function () {
                     enableSnippets
                     enableBasicAutocompletion
                     width="100%"
-                    height="150px"
+                    height="50px"
                     onChange={onTemplateChanged}
                     value={templateSql}
                     name="template-sql"
                     editorProps={{ $blockScrolling: true }}
                   />
                 </Col>
-                <Col span={4}>
-                  <div className="editor-wrapper">
-                    <Form.Item label="分隔符">
-                      <AutoComplete
-                        value={delimiter}
-                        onSelect={onDelimiterChanged}
-                        options={options}
-                      ></AutoComplete>
-                    </Form.Item>
-                    <Form.Item label="IN模式">
-                      <Checkbox
-                        checked={inMode}
-                        onChange={(e) => setInMode(e.target.checked)}
-                      />
-                    </Form.Item>
-                    <Form.Item label="收藏">
-                      <Checkbox
-                        checked={dataSource.includes(templateSql)}
-                        onChange={onCollectionChanged}
-                      />
-                    </Form.Item>
-                  </div>
-                </Col>
               </Row>
             </Tabs.TabPane>
             <Tabs.TabPane tab="收藏区" key="collection">
               <Table
+                size="small"
                 dataSource={_(dataSource)
                   .reverse()
                   .map((sql) => ({ sql }))
@@ -259,6 +263,7 @@ export default function () {
                 <Table.Column title="语句" dataIndex="sql"></Table.Column>
                 <Table.Column
                   title="操作"
+                  width={100}
                   render={(text, record: any) => {
                     return (
                       <>
@@ -297,7 +302,7 @@ export default function () {
               mode="sql"
               wrapEnabled
               width="100%"
-              height="400px"
+              height="200px"
               name="generate-sql"
               value={generateSql}
               editorProps={{ $blockScrolling: true }}
