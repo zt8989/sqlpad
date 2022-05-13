@@ -18,6 +18,7 @@ import {
   Table,
   CheckboxProps,
   Divider,
+  InputNumber,
 } from "antd";
 import AceEditor, { IAceEditorProps } from "react-ace";
 import { toSqlLines, toSqlLinesData } from "./lib/sqlpad";
@@ -48,6 +49,7 @@ const templateSqlKey = "__templateSqlKey";
 const delimiterKey = "__delimiterKey";
 const inModeKey = "__inModeKey";
 const dataSourceKey = "__dataSourceKey";
+const startLineKey = "__startLineKey";
 
 const setStore = (key: string) =>
   _.debounce(function (data: string) {
@@ -73,6 +75,7 @@ export default function () {
   const [templateSql, setTemplateSql] = useState("");
   const [delimiter, setDelimiter] = useState("");
   const [inMode, setInMode] = useState(false);
+  const [startLine, setStartLine] = useState(0);
   const [dataSource, setDataSource] = useState<string[]>([]);
   const editorRef = useRef<IAceEditor>(null);
 
@@ -81,6 +84,7 @@ export default function () {
     setTemplateSql(localStorage.getItem(templateSqlKey) || "");
     setDelimiter(localStorage.getItem(delimiterKey) || " ");
     setDataSource(toList(localStorage.getItem(dataSourceKey)));
+    setStartLine(Number(localStorage.getItem(startLineKey)) || 0);
   }, []);
 
   const setStoreForData = setStore(dataKey);
@@ -110,11 +114,11 @@ export default function () {
 
   const generateSql = useMemo(() => {
     return toSqlLines(
-      toSqlLinesData(data, delimiter),
+      toSqlLinesData(data, delimiter, startLine),
       templateSql,
       inMode
     ).join("\n");
-  }, [data, templateSql, delimiter, inMode]);
+  }, [data, templateSql, delimiter, inMode, startLine]);
 
   const onDataChanged = useCallback((data: string) => {
     dispatch("data", data);
@@ -170,141 +174,134 @@ export default function () {
   return (
     <>
       <Row>
-        <Col span={12}>
+        <Col span={12} xs={24}>
           <div className="editor-wrapper">
-            <Card
-              headStyle={{ backgroundColor: "#f5f5f5" }}
-              bordered
-              title="数据"
-            >
-              <AceEditor
-                {...commonProps}
-                mode="text"
-                onChange={onDataChanged}
-                value={data}
-                width="100%"
-                height="400px"
-                name="csv-data"
-                editorProps={{ $blockScrolling: true }}
-              />
-            </Card>
+            <div className="card-header">
+              <div>数据</div>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <span>起始行：</span>
+                <InputNumber
+                  size="small"
+                  value={startLine}
+                  onChange={(e) => setStartLine(e)}
+                />
+              </div>
+            </div>
+            <AceEditor
+              {...commonProps}
+              mode="text"
+              onChange={onDataChanged}
+              value={data}
+              width="100%"
+              height="400px"
+              name="csv-data"
+              editorProps={{ $blockScrolling: true }}
+            />
           </div>
         </Col>
-        <Col span={12}>
-          <div className="editor-wrapper">
-            <Card
-              headStyle={{ backgroundColor: "#f5f5f5" }}
-              bordered
-              title="生成的sql"
-              extra={
-                <a href="#" onClick={onCopy}>
-                  复制
-                </a>
-              }
-            >
-              <AceEditor
-                {...commonProps}
-                readOnly
-                ref={editorRef}
-                mode="sql"
-                wrapEnabled
-                width="100%"
-                height="400px"
-                name="generate-sql"
-                value={generateSql}
-                editorProps={{ $blockScrolling: true }}
-              />
-            </Card>
-          </div>
-        </Col>
-      </Row>
-      <Row>
         <Col span={24}>
-          <div className="editor-wrapper">
-            <Card
-              bordered
-              title="模板sql"
-              headStyle={{ backgroundColor: "#f5f5f5" }}
-            >
-              <Tabs>
-                <Tabs.TabPane tab="代码区" key="code">
-                  <Row>
-                    <Col span={20}>
-                      <AceEditor
-                        {...commonProps}
-                        mode="sql"
-                        enableLiveAutocompletion
-                        enableSnippets
-                        enableBasicAutocompletion
-                        width="100%"
-                        height="100px"
-                        onChange={onTemplateChanged}
-                        value={templateSql}
-                        name="template-sql"
-                        editorProps={{ $blockScrolling: true }}
+          <div className="card-header">
+            <div>模板sql</div>
+            <a href="#" onClick={onCopy}>
+              复制
+            </a>
+          </div>
+          <Tabs>
+            <Tabs.TabPane tab="代码区" key="code">
+              <Row>
+                <Col span={20}>
+                  <AceEditor
+                    {...commonProps}
+                    mode="sql"
+                    enableLiveAutocompletion
+                    enableSnippets
+                    enableBasicAutocompletion
+                    width="100%"
+                    height="150px"
+                    onChange={onTemplateChanged}
+                    value={templateSql}
+                    name="template-sql"
+                    editorProps={{ $blockScrolling: true }}
+                  />
+                </Col>
+                <Col span={4}>
+                  <div className="editor-wrapper">
+                    <Form.Item label="分隔符">
+                      <AutoComplete
+                        value={delimiter}
+                        onSelect={onDelimiterChanged}
+                        options={options}
+                      ></AutoComplete>
+                    </Form.Item>
+                    <Form.Item label="IN模式">
+                      <Checkbox
+                        checked={inMode}
+                        onChange={(e) => setInMode(e.target.checked)}
                       />
-                    </Col>
-                    <Col span={4}>
-                      <div className="editor-wrapper">
-                        <Form.Item label="分隔符">
-                          <AutoComplete
-                            value={delimiter}
-                            onSelect={onDelimiterChanged}
-                            options={options}
-                          ></AutoComplete>
-                        </Form.Item>
-                        <Form.Item label="IN模式">
-                          <Checkbox
-                            checked={inMode}
-                            onChange={(e) => setInMode(e.target.checked)}
-                          />
-                        </Form.Item>
-                        <Form.Item label="收藏">
-                          <Checkbox
-                            checked={dataSource.includes(templateSql)}
-                            onChange={onCollectionChanged}
-                          />
-                        </Form.Item>
-                      </div>
-                    </Col>
-                  </Row>
-                </Tabs.TabPane>
-                <Tabs.TabPane tab="收藏区" key="collection">
-                  <Table
-                    dataSource={_(dataSource)
-                      .reverse()
-                      .map((sql) => ({ sql }))
-                      .value()}
-                  >
-                    <Table.Column title="语句" dataIndex="sql"></Table.Column>
-                    <Table.Column
-                      title="操作"
-                      render={(text, record: any) => {
-                        return (
-                          <>
-                            <a
-                              href="#"
-                              onClick={() => setTemplateSql(record.sql)}
-                            >
-                              选择
-                            </a>
-                            <Divider type="vertical" />
-                            <a
-                              href="#"
-                              onClick={() =>
-                                removeDataSource(dataSource, record.sql)
-                              }
-                            >
-                              删除
-                            </a>
-                          </>
-                        );
-                      }}
-                    ></Table.Column>
-                  </Table>
-                </Tabs.TabPane>
-              </Tabs>
-            </Card>
+                    </Form.Item>
+                    <Form.Item label="收藏">
+                      <Checkbox
+                        checked={dataSource.includes(templateSql)}
+                        onChange={onCollectionChanged}
+                      />
+                    </Form.Item>
+                  </div>
+                </Col>
+              </Row>
+            </Tabs.TabPane>
+            <Tabs.TabPane tab="收藏区" key="collection">
+              <Table
+                dataSource={_(dataSource)
+                  .reverse()
+                  .map((sql) => ({ sql }))
+                  .value()}
+              >
+                <Table.Column title="语句" dataIndex="sql"></Table.Column>
+                <Table.Column
+                  title="操作"
+                  render={(text, record: any) => {
+                    return (
+                      <>
+                        <a href="#" onClick={() => setTemplateSql(record.sql)}>
+                          选择
+                        </a>
+                        <Divider type="vertical" />
+                        <a
+                          href="#"
+                          onClick={() =>
+                            removeDataSource(dataSource, record.sql)
+                          }
+                        >
+                          删除
+                        </a>
+                      </>
+                    );
+                  }}
+                ></Table.Column>
+              </Table>
+            </Tabs.TabPane>
+          </Tabs>
+        </Col>
+        <Col span={12} xs={24}>
+          <div className="card-header">
+            <div>生成的sql</div>
+            <a href="#" onClick={onCopy}>
+              复制
+            </a>
+          </div>
+          <div className="editor-wrapper">
+            <AceEditor
+              {...commonProps}
+              readOnly
+              ref={editorRef}
+              mode="sql"
+              wrapEnabled
+              width="100%"
+              height="400px"
+              name="generate-sql"
+              value={generateSql}
+              editorProps={{ $blockScrolling: true }}
+            />
           </div>
         </Col>
       </Row>

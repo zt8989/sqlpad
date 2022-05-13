@@ -12,9 +12,12 @@ export function splitLines(content: string): string[] {
 
 export function toSqlLinesData(
   content: string,
-  delimiter: string = " "
+  delimiter: string = " ",
+  startLine: number = 0
 ): string[][] {
-  return splitLines(content).map((x) => splitCols(x, delimiter));
+  return splitLines(content)
+    .slice(startLine)
+    .map((x) => splitCols(x, delimiter));
 }
 
 export function toSqlLines(
