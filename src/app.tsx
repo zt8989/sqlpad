@@ -23,6 +23,7 @@ import {
 import AceEditor, { IAceEditorProps } from "react-ace";
 import { toSqlLines, toSqlLinesData } from "./lib/sqlpad";
 import _ from "lodash";
+import useResizeObserver from "@react-hook/resize-observer";
 
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/theme-github";
@@ -30,6 +31,7 @@ import "./code.less";
 import { isClipboardWritingAllowed } from "./lib/command";
 import { IAceEditor } from "react-ace/lib/types";
 import { CheckboxChangeEvent } from "antd/lib/checkbox";
+import { useSize } from "./hooks/useSize";
 
 const commonProps: Partial<IAceEditorProps> = {
   fontSize: 14,
@@ -78,6 +80,8 @@ export default function () {
   const [startLine, setStartLine] = useState(0);
   const [dataSource, setDataSource] = useState<string[]>([]);
   const editorRef = useRef<IAceEditor>(null);
+  const layoutRef = useRef<HTMLElement>(document.body);
+  const size = useSize(layoutRef);
 
   useEffect(() => {
     setData(localStorage.getItem(dataKey) || "");
@@ -172,7 +176,7 @@ export default function () {
   };
 
   return (
-    <>
+    <div className="sqlpad-content">
       <Row>
         <Col span={12} xs={24}>
           <div className="editor-wrapper">
@@ -193,7 +197,7 @@ export default function () {
               onChange={onDataChanged}
               value={data}
               width="100%"
-              height="200px"
+              height={200 + Math.max((size.height - 600) * 0.4, 0) + "px"}
               name="csv-data"
               editorProps={{ $blockScrolling: true }}
             />
@@ -243,7 +247,7 @@ export default function () {
                     enableSnippets
                     enableBasicAutocompletion
                     width="100%"
-                    height="50px"
+                    height={50 + Math.max((size.height - 600) * 0.2, 0) + "px"}
                     onChange={onTemplateChanged}
                     value={templateSql}
                     name="template-sql"
@@ -302,7 +306,7 @@ export default function () {
               mode="sql"
               wrapEnabled
               width="100%"
-              height="200px"
+              height={200 + Math.max((size.height - 600) * 0.4, 0) + "px"}
               name="generate-sql"
               value={generateSql}
               editorProps={{ $blockScrolling: true }}
@@ -310,6 +314,6 @@ export default function () {
           </div>
         </Col>
       </Row>
-    </>
+    </div>
   );
 }

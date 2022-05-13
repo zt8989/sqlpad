@@ -7,13 +7,4 @@ import App from "./app";
 const { Content } = Layout;
 
 // Render editor
-render(
-  <Layout>
-    <Layout>
-      <Content>
-        <App />
-      </Content>
-    </Layout>
-  </Layout>,
-  document.getElementById("app")
-);
+render(<App />, document.getElementById("app"));
