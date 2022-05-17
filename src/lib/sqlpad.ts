@@ -39,10 +39,8 @@ export function toSqlLines(
 const simpleFormat = /^\$(\d+)$/;
 const complexFormat = /^\${((\d+).*)}$/;
 
-const funcs = {
-  UPPER: (x: string) => x.toUpperCase(),
-  LOWER: (x: string) => x.toLowerCase(),
-  TRIM: (x: string) => x.trim(),
+const userDefineFuncs = {
+  quote: (x: string, type = "'") => `${type}${x}${type}`,
 };
 
 export function getDataFromFormat(data: any, current: string) {
@@ -52,19 +50,23 @@ export function getDataFromFormat(data: any, current: string) {
   } else if ((match = current.match(complexFormat))) {
     const parse = parseFilters("$" + match[1]);
     const resolveFilter = (x: string) => {
-      return _.get(_, x) || _.identity;
+      return _.get(userDefineFuncs, x) || _.get(_, x) || _.identity;
     };
-    const func = new Function("$1", "_f", `return ${parse}`);
-    console.log(func);
-    return func(_.get(data, match[2], ""), resolveFilter);
+    try {
+      const func = new Function("$" + match[2], "_f", `return ${parse}`);
+      return func(_.get(data, match[2], ""), resolveFilter);
+    } catch (e) {
+      return _.get(data, match[2], "");
+    }
   }
 }
 
 export function formatLine(data: any[], sqlTemplate: string) {
-  const matches = sqlTemplate.match(/(\$\d+)|(\${\d+.*})/g);
+  const matches = sqlTemplate.match(/(\$\d+)|(\${\d+.*?})/g);
   const set = new Set(matches);
   console.log(set);
   return _.sortBy(Array.from(set), (x) => -x.length).reduce((prev, current) => {
+    console.log(prev, current);
     return prev.replace(
       new RegExp(_.escapeRegExp(current), "g"),
       getDataFromFormat(data, current)
