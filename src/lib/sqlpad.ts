@@ -1,5 +1,6 @@
 import _ from "lodash";
 import { pipe, trim } from "lodash/fp";
+import { parseFilters } from "./filter-parser";
 
 export function splitCols(line: string, delimiter: string): string[] {
   const deli = /^\s+$/.test(delimiter) ? /\s+/g : delimiter;
@@ -35,13 +36,38 @@ export function toSqlLines(
     : data.map((x) => formatLine(x, sqlTemplate));
 }
 
+const simpleFormat = /^\$(\d+)$/;
+const complexFormat = /^\${((\d+).*)}$/;
+
+const funcs = {
+  UPPER: (x: string) => x.toUpperCase(),
+  LOWER: (x: string) => x.toLowerCase(),
+  TRIM: (x: string) => x.trim(),
+};
+
+export function getDataFromFormat(data: any, current: string) {
+  let match;
+  if ((match = current.match(simpleFormat))) {
+    return _.get(data, match[1], "");
+  } else if ((match = current.match(complexFormat))) {
+    const parse = parseFilters("$" + match[1]);
+    const resolveFilter = (x: string) => {
+      return _.get(_, x) || _.identity;
+    };
+    const func = new Function("$1", "_f", `return ${parse}`);
+    console.log(func);
+    return func(_.get(data, match[2], ""), resolveFilter);
+  }
+}
+
 export function formatLine(data: any[], sqlTemplate: string) {
-  const matches = sqlTemplate.match(/\$\d+?/g);
+  const matches = sqlTemplate.match(/(\$\d+)|(\${\d+.*})/g);
   const set = new Set(matches);
-  return Array.from(set).reduce((prev, current) => {
+  console.log(set);
+  return _.sortBy(Array.from(set), (x) => -x.length).reduce((prev, current) => {
     return prev.replace(
       new RegExp(_.escapeRegExp(current), "g"),
-      _.get(data, current.slice(1), "")
+      getDataFromFormat(data, current)
     );
   }, sqlTemplate);
 }
