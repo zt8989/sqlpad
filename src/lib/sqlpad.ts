@@ -29,8 +29,8 @@ export function toSqlLines(
   return inMode
     ? [
         formatLine(
-          _.unzip(data).map((x) => x.join()),
-          sqlTemplate
+          _.unzip(data),
+          sqlTemplate,
         ),
       ]
     : data.map((x) => formatLine(x, sqlTemplate));
@@ -46,7 +46,8 @@ const userDefineFuncs = {
 export function getDataFromFormat(data: any, current: string) {
   let match;
   if ((match = current.match(simpleFormat))) {
-    return _.get(data, match[1], "");
+    const item = _.get(data, match[1], "");
+    return Array.isArray(item) ? item.join() : item
   } else if ((match = current.match(complexFormat))) {
     const parse = parseFilters("$" + match[1]);
     const resolveFilter = (x: string) => {
@@ -54,9 +55,11 @@ export function getDataFromFormat(data: any, current: string) {
     };
     try {
       const func = new Function("$" + match[2], "_f", `return ${parse}`);
-      return func(_.get(data, match[2], ""), resolveFilter);
+      const item = _.get(data, match[2], "")
+      return Array.isArray(item) ? item.map(x => func(x, resolveFilter)) : func(item, resolveFilter);
     } catch (e) {
-      return _.get(data, match[2], "");
+      const item = _.get(data, match[2], "")
+      return Array.isArray(item) ? item.join() : item
     }
   }
 }

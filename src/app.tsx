@@ -38,8 +38,9 @@ const commonProps: Partial<IAceEditorProps> = {
 
 const map = {
   " ": " (空格)",
+  "\t":"\t(TAB)"
 };
-const options = [" ", ",", "#", "%", "/"].map((value) => ({
+const options = [" ", "\t", ",", "#", "%", "/"].map((value) => ({
   label: _.get(map, value, value),
   value,
 }));
@@ -70,6 +71,10 @@ function toList(str: string | null) {
   return [];
 }
 
+const Types = {
+  templateSql: "templateSql"
+}
+
 export default function () {
   const [data, setData] = useState("");
   const [templateSql, setTemplateSql] = useState("");
@@ -80,6 +85,7 @@ export default function () {
   const editorRef = useRef<IAceEditor>(null);
   const layoutRef = useRef<HTMLElement>(document.body);
   const size = useSize(layoutRef);
+  const [activeTab, setActiveTab] = useState("code")
 
   useEffect(() => {
     setData(localStorage.getItem(dataKey) || "");
@@ -126,7 +132,7 @@ export default function () {
     dispatch("data", data);
   }, []);
   const onTemplateChanged = useCallback((data: string) => {
-    dispatch("templateSql", data);
+    dispatch(Types.templateSql, data);
   }, []);
   const onDelimiterChanged = useCallback((data: string) => {
     dispatch("delimiter", data);
@@ -188,6 +194,8 @@ export default function () {
             <div>模板sql</div>
           </div>
           <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
             tabBarExtraContent={
               <Form layout="inline">
                 <Form.Item label="分隔符">
@@ -220,6 +228,7 @@ export default function () {
                   <AceEditor
                     {...commonProps}
                     mode="sql"
+                    ref={editorRef}
                     enableLiveAutocompletion
                     enableSnippets
                     enableBasicAutocompletion
@@ -248,7 +257,11 @@ export default function () {
                   render={(text, record: any) => {
                     return (
                       <>
-                        <a href="#" onClick={() => setTemplateSql(record.sql)}>
+                        <a href="#" onClick={() => {
+                            dispatch(Types.templateSql, record.sql)
+                            setActiveTab("code")
+                            editorRef.current?.setValue(record.sql)
+                          }}>
                           选择
                         </a>
                         <Divider type="vertical" />
@@ -279,7 +292,6 @@ export default function () {
             <AceEditor
               {...commonProps}
               readOnly
-              ref={editorRef}
               mode="sql"
               wrapEnabled
               width="100%"
