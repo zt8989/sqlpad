@@ -16,6 +16,9 @@ import {
   Table,
   Divider,
   InputNumber,
+  Input,
+  Button,
+  Modal,
 } from "antd";
 import AceEditor, { IAceEditorProps } from "react-ace";
 import { toSqlLines, toSqlLinesData } from "./lib/sqlpad";
@@ -30,6 +33,8 @@ import { isClipboardWritingAllowed } from "./lib/command";
 import { IAceEditor } from "react-ace/lib/types";
 import { CheckboxChangeEvent } from "antd/lib/checkbox";
 import { useSize } from "./hooks/useSize";
+import { toCollectionType } from "./lib/collection-service";
+import { CollectionType } from "./lib/types";
 
 const commonProps: Partial<IAceEditorProps> = {
   fontSize: 14,
@@ -72,7 +77,9 @@ function toList(str: string | null) {
 }
 
 const Types = {
-  templateSql: "templateSql"
+  templateSql: "templateSql",
+  selectCollection: "selectCollection",
+  "dataSource": "dataSource"
 }
 
 export default function () {
@@ -81,17 +88,57 @@ export default function () {
   const [delimiter, setDelimiter] = useState("");
   const [inMode, setInMode] = useState(false);
   const [startLine, setStartLine] = useState(0);
-  const [dataSource, setDataSource] = useState<string[]>([]);
+  const [dataSource, setDataSource] = useState<CollectionType[]>([]);
+  const [collection, setCollection] = useState<CollectionType | null>(null)
   const editorRef = useRef<IAceEditor>(null);
   const layoutRef = useRef<HTMLElement>(document.body);
   const size = useSize(layoutRef);
   const [activeTab, setActiveTab] = useState("code")
+  const [visible, setVisible] = useState(false)
+  const [searchName, setSearchName] = useState("")
+  const [form] = Form.useForm() 
+
+  const onSearch = useCallback((e) => {
+    const name = e.target.value
+    setSearchName(name)
+  }, [])
+
+  const onSearchRest = useCallback(() => {
+    onSearch({ target: { value: "" } })
+  }, [])
+
+  const onSubmit = useCallback(() => {
+    form.validateFields().then(res => {
+      let id: number
+      if(dataSource.length == 0){
+        id = 1
+      } else {
+        id = dataSource[dataSource.length - 1].id + 1
+      }
+      const c = { ...res, sql: templateSql, id }
+      dispatch(Types.dataSource, [...dataSource, c])
+      setCollection(c)
+      setVisible(false)
+    })
+  }, [dataSource])
+
+  const updateCollection = useCallback(() => {
+    dispatch(Types.dataSource, dataSource.map(it => {
+      if(it.id === collection?.id){
+        return {
+          ...it,
+          sql: templateSql
+        }
+      }
+      return it
+    }))
+  }, [collection])
 
   useEffect(() => {
     setData(localStorage.getItem(dataKey) || "");
     setTemplateSql(localStorage.getItem(templateSqlKey) || "");
     setDelimiter(localStorage.getItem(delimiterKey) || " ");
-    setDataSource(toList(localStorage.getItem(dataSourceKey)));
+    setDataSource(toCollectionType(localStorage.getItem(dataSourceKey)));
     setStartLine(Number(localStorage.getItem(startLineKey)) || 0);
   }, []);
 
@@ -106,19 +153,33 @@ export default function () {
         setData(data);
         setStoreForData(data);
         break;
-      case "templateSql":
+      case Types.templateSql:
         setTemplateSql(data);
         setStoreForTemplateSql(data);
         break;
       case "delimiter":
         setDelimiter(data);
         setStoreForDelimiter(data);
-      case "dataSource":
+      case Types.dataSource:
         setDataSource(data);
         setStoreForDataSource(toString(data));
         break;
+      case Types.selectCollection:
+        dispatch(Types.templateSql, data.sql);
+        setCollection(data)
+        break
     }
   };
+
+  const filterDataSource = useMemo(() => _(dataSource)
+  .reverse()
+  .filter(value => {
+    if(_.trim(searchName)){
+      return value.name.includes(_.trim(searchName))
+    }
+    return true
+  })
+  .value(), [dataSource, searchName])
 
   const generateSql = useMemo(() => {
     return toSqlLines(
@@ -138,22 +199,11 @@ export default function () {
     dispatch("delimiter", data);
   }, []);
 
-  const removeDataSource = (dataSource: string[], sql: string) =>
+  const removeDataSource = (record: CollectionType) =>
     dispatch(
       "dataSource",
-      dataSource.filter((x) => x !== sql)
+      dataSource.filter((x) => x.id !== record.id)
     );
-
-  const onCollectionChanged = useCallback(
-    (e: CheckboxChangeEvent) => {
-      if (e.target.checked) {
-        dispatch("dataSource", [...dataSource, templateSql]);
-      } else {
-        removeDataSource(dataSource, templateSql);
-      }
-    },
-    [dataSource, templateSql]
-  );
 
   const onCopy = (text: string, result: boolean) => {
     if (result) {
@@ -197,6 +247,7 @@ export default function () {
             activeKey={activeTab}
             onChange={setActiveTab}
             tabBarExtraContent={
+              activeTab === "code" ? 
               <Form layout="inline">
                 <Form.Item label="分隔符">
                   <AutoComplete
@@ -214,10 +265,16 @@ export default function () {
                   />
                 </Form.Item>
                 <Form.Item label="收藏">
-                  <Checkbox
-                    checked={dataSource.includes(templateSql)}
-                    onChange={onCollectionChanged}
-                  />
+                  <a type="link" onClick={() => setVisible(true)}>保存</a>
+                  {collection?.id && collection?.sql !== templateSql && <><Divider type="vertical"/><a type="link" onClick={updateCollection}>更新</a></>}
+                </Form.Item>
+              </Form> : 
+              <Form layout="inline">
+                <Form.Item label="名称">
+                  <Input size="small" value={searchName} onChange={onSearch}/>
+                </Form.Item>
+                <Form.Item>
+                  <Button size="small" onClick={onSearchRest}>重置</Button>
                 </Form.Item>
               </Form>
             }
@@ -245,20 +302,18 @@ export default function () {
             <Tabs.TabPane tab="收藏区" key="collection">
               <Table
                 size="small"
-                dataSource={_(dataSource)
-                  .reverse()
-                  .map((sql) => ({ sql }))
-                  .value()}
+                dataSource={filterDataSource}
               >
+                <Table.Column title="名称" dataIndex="name"></Table.Column>
                 <Table.Column title="语句" dataIndex="sql"></Table.Column>
                 <Table.Column
                   title="操作"
                   width={100}
-                  render={(text, record: any) => {
+                  render={(text, record: CollectionType) => {
                     return (
                       <>
                         <a href="#" onClick={() => {
-                            dispatch(Types.templateSql, record.sql)
+                            dispatch(Types.selectCollection, record)
                             setActiveTab("code")
                             editorRef.current?.setValue(record.sql)
                           }}>
@@ -268,7 +323,7 @@ export default function () {
                         <a
                           href="#"
                           onClick={() =>
-                            removeDataSource(dataSource, record.sql)
+                            removeDataSource(record)
                           }
                         >
                           删除
@@ -303,6 +358,13 @@ export default function () {
           </div>
         </Col>
       </Row>
+    <Modal title="收藏" visible={visible} okText="收藏" cancelText="取消" onOk={onSubmit}>
+      <Form form={form}>
+        <Form.Item name={"name"} rules={[{required: true}]}>
+          <Input />
+        </Form.Item>
+      </Form>
+    </Modal>
     </div>
   );
 }
