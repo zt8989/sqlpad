@@ -117,13 +117,13 @@ export default function () {
       } else {
         id = dataSource[dataSource.length - 1].id + 1
       }
-      const c = { ...res, sql: templateSql, id }
+      const c = { ...res, sql: templateSql, id, startLine }
       dispatch(Types.dataSource, [...dataSource, c])
       setCollection(c)
       setVisible(false)
       return form.resetFields()
     })
-  }, [dataSource, templateSql])
+  }, [dataSource, templateSql, startLine])
 
   const updateCollection = useCallback(() => {
     dispatch(Types.dataSource, dataSource.map(it => {
@@ -174,6 +174,7 @@ export default function () {
       case Types.selectCollection:
         dispatch(Types.templateSql, data.sql);
         setCollection(data)
+        setStartLine(data.startLine || 0)
         break
     }
   };
