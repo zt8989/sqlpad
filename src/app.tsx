@@ -35,6 +35,7 @@ import { CheckboxChangeEvent } from "antd/lib/checkbox";
 import { useSize } from "./hooks/useSize";
 import { toCollectionType } from "./lib/collection-service";
 import { CollectionType } from "./lib/types";
+import { GenerateIdService } from "./lib/generate-id-service";
 
 const commonProps: Partial<IAceEditorProps> = {
   fontSize: 14,
@@ -97,6 +98,7 @@ export default function () {
   const [visible, setVisible] = useState(false)
   const [searchName, setSearchName] = useState("")
   const [form] = Form.useForm() 
+  const [id, setId] = useState(0)
 
   const onSearch = useCallback((e) => {
     const name = e.target.value
@@ -136,7 +138,9 @@ export default function () {
   }, [collection])
 
   useEffect(() => {
-    setData(localStorage.getItem(dataKey) || "");
+    const data = localStorage.getItem(dataKey) || ""
+    setData(data);
+    serviceRef.current = GenerateIdService.make(data)
     setTemplateSql(localStorage.getItem(templateSqlKey) || "");
     setDelimiter(localStorage.getItem(delimiterKey) || " ");
     setDataSource(toCollectionType(localStorage.getItem(dataSourceKey)));
@@ -147,12 +151,14 @@ export default function () {
   const setStoreForTemplateSql = setStore(templateSqlKey);
   const setStoreForDelimiter = setStore(delimiterKey);
   const setStoreForDataSource = setStore(dataSourceKey);
+  const serviceRef = useRef(GenerateIdService.make(data))
 
   const dispatch = (type: string, data: any) => {
     switch (type) {
       case "data":
         setData(data);
         setStoreForData(data);
+        serviceRef.current = GenerateIdService.make(data)
         break;
       case Types.templateSql:
         setTemplateSql(data);
@@ -184,11 +190,15 @@ export default function () {
 
   const generateSql = useMemo(() => {
     return toSqlLines(
-      toSqlLinesData(data, delimiter, startLine),
-      templateSql,
-      inMode
+      { content:data, 
+        delimiter, 
+        startLine, 
+        sqlTemplate: templateSql,
+        inMode,
+        service: serviceRef.current
+      }
     ).join("\n");
-  }, [data, templateSql, delimiter, inMode, startLine]);
+  }, [data, templateSql, delimiter, inMode, startLine, id]);
 
   const onDataChanged = useCallback((data: string) => {
     dispatch("data", data);
@@ -211,6 +221,11 @@ export default function () {
       message.success("复制成功!");
     }
   };
+
+  const onNextId = useCallback(() => {
+    serviceRef.current = GenerateIdService.make(data, true)
+    setId(id+1)
+  }, [data, id])
 
   return (
     <div className="sqlpad-content">
@@ -340,9 +355,13 @@ export default function () {
         <Col span={12} xs={24}>
           <div className="card-header">
             <div>生成的sql</div>
-            <CopyToClipboard text={generateSql} onCopy={onCopy}>
-              <a href="#">复制</a>
-            </CopyToClipboard>
+            <div>
+              <a href="#" onClick={onNextId}>生成下一批ID</a>
+              <Divider type="vertical"></Divider>
+              <CopyToClipboard text={generateSql} onCopy={onCopy}>
+                <a href="#">复制</a>
+              </CopyToClipboard>
+            </div>
           </div>
           <div className="editor-wrapper">
             <AceEditor
