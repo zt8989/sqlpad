@@ -119,8 +119,9 @@ export default function () {
       dispatch(Types.dataSource, [...dataSource, c])
       setCollection(c)
       setVisible(false)
+      return form.resetFields()
     })
-  }, [dataSource])
+  }, [dataSource, templateSql])
 
   const updateCollection = useCallback(() => {
     dispatch(Types.dataSource, dataSource.map(it => {
@@ -358,7 +359,7 @@ export default function () {
           </div>
         </Col>
       </Row>
-    <Modal title="收藏" visible={visible} okText="收藏" cancelText="取消" onOk={onSubmit}>
+    <Modal title="收藏" visible={visible} okText="收藏" cancelText="取消" onOk={onSubmit} onCancel={() => setVisible(false)}>
       <Form form={form}>
         <Form.Item name={"name"} rules={[{required: true}]}>
           <Input />
