@@ -30,6 +30,9 @@
 4. `@snow`表示雪花id
 5. `@uuid`表示生成uuid并移除"-"
 6. `@uuidv4`表示成功uuid
+6. `@now`时间戳
+6. `@datetime`时间日期
+6. `@date`日期
 
 ### 增强变量表达式
 

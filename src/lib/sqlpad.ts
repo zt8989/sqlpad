@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { pipe, trim } from "lodash/fp";
 import { parseFilters } from "./filter-parser";
-import { GenerateIdService } from "./generate-id-service";
+import { GenerateService } from "./generate-id-service";
 import { log } from "./log";
 
 export function splitCols(line: string, delimiter: string): (string | string[])[] {
@@ -28,7 +28,7 @@ export function toSqlLines(param: {
   startLine: number,
   sqlTemplate: string,
   inMode: boolean
-  service: GenerateIdService
+  service: GenerateService
 }) {
   const {
     content, 
@@ -60,16 +60,23 @@ const complexFormat = /^\${((\d+).*)}$/;
 const simpleLineFormat = /^#(\d+)$/;
 const complexLineFormat = /^#{((\d+).*)}$/;
 const idFormat = /^(@id(\.\d+)?|@snow|@uuidv4|@uuid)$/
+const dateFormat = /^(@now|@datetime|@date)$/
 
 const userDefineFuncs = {
   quote: (x: string, type = "'") => `${type}${x}${type}`,
 };
 
-export function getDataFromFormat(param: formatLineArgs, current: string, service: GenerateIdService) {
+export function getDataFromFormat(param: formatLineArgs, current: string, service: GenerateService) {
   const { data, item, index } = param
   switch(current[0]){
     case "@":
-      return matchId(current.match(idFormat)!, index, service)
+      let match: RegExpMatchArray | null
+      if(match = current.match(idFormat)){
+        return matchId(match, index, service)
+      }
+      if(match = current.match(dateFormat)){
+        return matchDate(match, index, service)
+      }
     case "#":
       return matchLine(current, param.originData)
     case "$":
@@ -79,26 +86,30 @@ export function getDataFromFormat(param: formatLineArgs, current: string, servic
   }
 }
 
+function resolveData(data: any, current: string, match: RegExpMatchArray) {
+  const parse = parseFilters("$" + match[1]);
+  log.dubug(parse)
+  const resolveFilter = (x: string) => {
+    return _.get(userDefineFuncs, x) || _.get(_, x) || _.identity;
+  };
+  const func = new Function("$" + match[2], "_f", "_", `return ${parse}`);
+  const item = _.get(data, match[2], [])
+  if(!current.includes("map(")){
+    return Array.isArray(item) ? item.slice(1).map(i => func(i, resolveFilter, { ..._, ...userDefineFuncs })).join() : ""
+  }
+  const result = func(item.slice(1), resolveFilter, { ..._, ...userDefineFuncs })
+  return Array.isArray(result) ? result.join() : result
+}
+
 function matchLine(current: string, data: any){
   let match;
   if ((match = current.match(simpleLineFormat))) {
-    const line = parseInt(match[1]) + 1
+    const line = parseInt(match[1])
     const item = _.get(data, line, []);
     return Array.isArray(item) ? item.slice(1).join() : item
   } else if ((match = current.match(complexLineFormat))) {
-    const parse = parseFilters("$" + match[1]);
-    log.dubug(parse)
-    const resolveFilter = (x: string) => {
-      return _.get(userDefineFuncs, x) || _.get(_, x) || _.identity;
-    };
     try {
-      const func = new Function("$" + match[2], "_f", "_", `return ${parse}`);
-      const item = _.get(data, match[2], [])
-      if(!current.includes("map(")){
-        return Array.isArray(item) ? item.slice(1).map(i => func(i, resolveFilter, { ..._, ...userDefineFuncs })).join() : ""
-      }
-      const result = func(item.slice(1), resolveFilter, { ..._, ...userDefineFuncs })
-      return Array.isArray(result) ? result.join() : ""
+        return resolveData(data, current, match!)
     } catch (e) {
       log.error(e)
       const item = _.get(data, match[2], "")
@@ -128,7 +139,7 @@ function matchItem(current: string, data: any){
   }
 }
 
-function matchId(match: RegExpMatchArray, index = 0, service: GenerateIdService){
+function matchId(match: RegExpMatchArray, index = 0, service: GenerateService){
   if(match[1].startsWith("@id")){
     const start = match[2] ? Number.parseInt(match[2].slice(1)) : 1
     return service.incId(index, start)
@@ -153,9 +164,9 @@ interface formatLineArgs {
   index:number
 }
 
-export function formatLine(param: formatLineArgs, service: GenerateIdService) {
+export function formatLine(param: formatLineArgs, service: GenerateService) {
   const { sqlTemplate, index = 0 } = param
-  const matches = sqlTemplate.match(/(?<!\\)(\$\d+|\${\d+.*?}|#\d+|#{\d+.*?}|@id(\.\d+)?|@snow|@uuidv4|@uuid)/g);
+  const matches = sqlTemplate.match(/(?<!\\)(\$\d+|\${\d+.*?}|#\d+|#{\d+.*?}|@id(\.\d+)?|@snow|@uuidv4|@uuid|@now|@datetime|@date)/g);
   const set = new Set(matches);
   return _.sortBy(Array.from(set), (x) => -x.length).reduce((prev, current) => {
     return prev.replace(
@@ -164,3 +175,16 @@ export function formatLine(param: formatLineArgs, service: GenerateIdService) {
     );
   }, sqlTemplate);
 }
+function matchDate(match: RegExpMatchArray, index: number, service: GenerateService) {
+  if(match[1].startsWith("@now")){
+    return service.getNow(true)
+  }
+  if(match[1] === "@date"){
+    return service.getDate()
+  }
+  if(match[1] === "@datetime"){
+    return service.getDateTime()
+  }
+  return ``
+}
+

@@ -35,7 +35,7 @@ import { CheckboxChangeEvent } from "antd/lib/checkbox";
 import { useSize } from "./hooks/useSize";
 import { toCollectionType } from "./lib/collection-service";
 import { CollectionType } from "./lib/types";
-import { GenerateIdService } from "./lib/generate-id-service";
+import { GenerateService } from "./lib/generate-id-service";
 
 const commonProps: Partial<IAceEditorProps> = {
   fontSize: 14,
@@ -140,7 +140,7 @@ export default function () {
   useEffect(() => {
     const data = localStorage.getItem(dataKey) || ""
     setData(data);
-    serviceRef.current = GenerateIdService.make(data)
+    serviceRef.current = GenerateService.make(data)
     setTemplateSql(localStorage.getItem(templateSqlKey) || "");
     setDelimiter(localStorage.getItem(delimiterKey) || " ");
     setDataSource(toCollectionType(localStorage.getItem(dataSourceKey)));
@@ -151,14 +151,14 @@ export default function () {
   const setStoreForTemplateSql = setStore(templateSqlKey);
   const setStoreForDelimiter = setStore(delimiterKey);
   const setStoreForDataSource = setStore(dataSourceKey);
-  const serviceRef = useRef(GenerateIdService.make(data))
+  const serviceRef = useRef(GenerateService.make(data))
 
   const dispatch = (type: string, data: any) => {
     switch (type) {
       case "data":
         setData(data);
         setStoreForData(data);
-        serviceRef.current = GenerateIdService.make(data)
+        serviceRef.current = GenerateService.make(data)
         break;
       case Types.templateSql:
         setTemplateSql(data);
@@ -224,7 +224,7 @@ export default function () {
   };
 
   const onNextId = useCallback(() => {
-    serviceRef.current = GenerateIdService.make(data, true)
+    serviceRef.current = GenerateService.make(data, true)
     setId(id+1)
   }, [data, id])
 

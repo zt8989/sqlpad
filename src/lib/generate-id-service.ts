@@ -1,15 +1,28 @@
 import { Snowflake } from "node-snowflake"
 import { v4 as uuidv4 } from 'uuid';
-
-export class GenerateIdService {
-  private static preService: GenerateIdService
+import dayjs from "dayjs"
+export class GenerateService {
+  private static preService: GenerateService
 
   private hash: String
   private snowIds: string[] = []
   private uuidv4s: string[] = []
+  private now = dayjs()
 
   private constructor(hash: String){
     this.hash = hash
+  }
+
+  getNow(mile: boolean){
+    return mile ? this.now.valueOf() : this.now.unix()
+  }
+
+  getDate(){
+    return this.now.format("YYYY-MM-DD")
+  }
+
+  getDateTime(){
+    return this.now.format("YYYY-MM-DD HH:mm:ss")
   }
 
   incId(index: number, start: number){
@@ -44,7 +57,7 @@ export class GenerateIdService {
     if(!forceNew && this.preService && this.preService.hash === hash){
       return this.preService
     } else {
-      this.preService = new GenerateIdService(hash)
+      this.preService = new GenerateService(hash)
       return this.preService
     }
   }
